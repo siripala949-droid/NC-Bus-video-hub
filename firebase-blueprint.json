@@ -1,0 +1,350 @@
+{
+  "entities": {
+    "UserPublicProfile": {
+      "title": "UserPublicProfile",
+      "description": "Public creator profile stored in users/{userId} without PII.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Public display name of the creator.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Public avatar URL of the creator.",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "followerCount": {
+          "type": "integer",
+          "description": "Total number of followers, atomically synchronized with followers subcollection."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of profile creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last profile update."
+        }
+      },
+      "required": ["uid", "displayName", "photoURL", "followerCount", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Strictly isolated PII record stored in users/{userId}/private/{privateId}.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Private user email address from Google Sign-In.",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of update."
+        }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "FollowerRecord": {
+      "title": "FollowerRecord",
+      "description": "Represents a follower relationship under users/{creatorId}/followers/{followerId}.",
+      "type": "object",
+      "properties": {
+        "creatorId": {
+          "type": "string",
+          "description": "UID of the creator being followed.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "followerId": {
+          "type": "string",
+          "description": "UID of the user who follows the creator.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "followerName": {
+          "type": "string",
+          "description": "Display name of the follower.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when follow occurred."
+        }
+      },
+      "required": ["creatorId", "followerId", "followerName", "createdAt"]
+    },
+    "PublicVideo": {
+      "title": "PublicVideo",
+      "description": "No-copyright bus gaming video metadata stored in public_videos/{videoId}.",
+      "type": "object",
+      "properties": {
+        "videoId": {
+          "type": "string",
+          "description": "Document ID of the video.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Video title.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "description": "Video description and license notes.",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Simulation", "Racing", "Documentary", "Gameplay"],
+          "description": "Bus gaming video category."
+        },
+        "driveFileId": {
+          "type": "string",
+          "description": "Google Drive file ID for streaming and downloading.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "streamUrl": {
+          "type": "string",
+          "description": "Google Drive direct stream/preview URL.",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "downloadUrl": {
+          "type": "string",
+          "description": "Google Drive direct download link.",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "uploaderId": {
+          "type": "string",
+          "description": "UID of the video creator.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "uploaderName": {
+          "type": "string",
+          "description": "Display name of the uploader.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "uploaderPhoto": {
+          "type": "string",
+          "description": "Avatar URL of the uploader.",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "likeCount": {
+          "type": "integer",
+          "description": "Total number of likes/reactions on the video, atomically synchronized with likes subcollection."
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["public"],
+          "description": "Visibility state for query enforcement."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when video was published."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last metadata update."
+        }
+      },
+      "required": [
+        "videoId",
+        "title",
+        "description",
+        "category",
+        "driveFileId",
+        "streamUrl",
+        "downloadUrl",
+        "uploaderId",
+        "uploaderName",
+        "uploaderPhoto",
+        "likeCount",
+        "visibility",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VideoLike": {
+      "title": "VideoLike",
+      "description": "Represents a user like or reaction on a video under /public_videos/{videoId}/likes/{userId}.",
+      "type": "object",
+      "properties": {
+        "videoId": {
+          "type": "string",
+          "description": "ID of the liked video.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the user reacting to the video.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "reactionType": {
+          "type": "string",
+          "enum": ["like", "fire", "trophy"],
+          "description": "Selected appreciation reaction type."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when reaction was created."
+        }
+      },
+      "required": ["videoId", "userId", "reactionType", "createdAt"]
+    },
+    "UserNotification": {
+      "title": "UserNotification",
+      "description": "Notification document sent to followers under users/{userId}/notifications/{notificationId}.",
+      "type": "object",
+      "properties": {
+        "recipientId": {
+          "type": "string",
+          "description": "UID of the follower receiving the notification.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderId": {
+          "type": "string",
+          "description": "UID of the creator who uploaded the video.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderName": {
+          "type": "string",
+          "description": "Display name of the creator.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "senderPhoto": {
+          "type": "string",
+          "description": "Avatar URL of the creator.",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "videoId": {
+          "type": "string",
+          "description": "ID of the newly uploaded video.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "videoTitle": {
+          "type": "string",
+          "description": "Title of the newly uploaded video.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "message": {
+          "type": "string",
+          "description": "Formatted notification text.",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "read": {
+          "type": "boolean",
+          "description": "Whether the recipient has read the notification."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of notification creation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of notification update."
+        }
+      },
+      "required": [
+        "recipientId",
+        "senderId",
+        "senderName",
+        "senderPhoto",
+        "videoId",
+        "videoTitle",
+        "message",
+        "read",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublicProfile" },
+      "description": "Public creator profiles without PII."
+    },
+    "/users/{userId}/private/{privateId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Owner-only PII storage (email)."
+    },
+    "/users/{creatorId}/followers/{followerId}": {
+      "schema": { "$ref": "#/entities/FollowerRecord" },
+      "description": "Subcollection tracking who follows a creator."
+    },
+    "/public_videos/{videoId}": {
+      "schema": { "$ref": "#/entities/PublicVideo" },
+      "description": "Publicly streamable and downloadable no-copyright bus gaming videos."
+    },
+    "/public_videos/{videoId}/likes/{userId}": {
+      "schema": { "$ref": "#/entities/VideoLike" },
+      "description": "Subcollection storing user likes and appreciation reactions per video."
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/UserNotification" },
+      "description": "Real-time notifications delivered to followers when a creator uploads a video."
+    }
+  }
+}

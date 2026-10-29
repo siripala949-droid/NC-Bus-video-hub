@@ -1,0 +1,406 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 4.1: Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Validation Blueprint: UserPublicProfile (/users/{userId})
+    function isValidUserPublicProfile(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'photoURL', 'followerCount', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'photoURL', 'followerCount', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && data.photoURL is string && data.photoURL.size() >= 0 && data.photoURL.size() <= 500
+        && data.followerCount is int && data.followerCount >= 0
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: UserPrivateInfo (/users/{userId}/private/{privateId})
+    function isValidUserPrivateInfo(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == request.auth.uid
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: FollowerRecord (/users/{creatorId}/followers/{followerId})
+    function isValidFollowerRecord(data) {
+      return data.keys().hasAll(['creatorId', 'followerId', 'followerName', 'createdAt'])
+        && data.keys().hasOnly(['creatorId', 'followerId', 'followerName', 'createdAt'])
+        && isValidId(data.creatorId)
+        && isValidId(data.followerId)
+        && data.followerId == request.auth.uid
+        && data.creatorId != data.followerId
+        && data.followerName is string && data.followerName.size() >= 1 && data.followerName.size() <= 100
+        && data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint: PublicVideo (/public_videos/{videoId})
+    function isValidPublicVideo(data) {
+      return data.keys().hasAll([
+          'videoId', 'title', 'description', 'category', 'driveFileId',
+          'streamUrl', 'downloadUrl', 'uploaderId', 'uploaderName',
+          'uploaderPhoto', 'likeCount', 'visibility', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'videoId', 'title', 'description', 'category', 'driveFileId',
+          'streamUrl', 'downloadUrl', 'uploaderId', 'uploaderName',
+          'uploaderPhoto', 'likeCount', 'visibility', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.videoId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.description is string && data.description.size() >= 1 && data.description.size() <= 1000
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 32
+        && data.category in ['Simulation', 'Racing', 'Documentary', 'Gameplay']
+        && isValidId(data.driveFileId)
+        && data.streamUrl is string && data.streamUrl.size() >= 1 && data.streamUrl.size() <= 500
+        && data.downloadUrl is string && data.downloadUrl.size() >= 1 && data.downloadUrl.size() <= 500
+        && isValidId(data.uploaderId)
+        && data.uploaderName is string && data.uploaderName.size() >= 1 && data.uploaderName.size() <= 100
+        && data.uploaderPhoto is string && data.uploaderPhoto.size() >= 0 && data.uploaderPhoto.size() <= 500
+        && data.likeCount is int && data.likeCount >= 0
+        && data.visibility == 'public'
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: VideoLike (/public_videos/{videoId}/likes/{userId})
+    function isValidVideoLike(data) {
+      return data.keys().hasAll(['videoId', 'userId', 'reactionType', 'createdAt'])
+        && data.keys().hasOnly(['videoId', 'userId', 'reactionType', 'createdAt'])
+        && isValidId(data.videoId)
+        && isValidId(data.userId)
+        && data.userId == request.auth.uid
+        && data.reactionType is string && data.reactionType.size() >= 1 && data.reactionType.size() <= 16
+        && data.reactionType in ['like', 'fire', 'trophy']
+        && data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint: UserNotification (/users/{userId}/notifications/{notificationId})
+    function isValidUserNotification(data) {
+      return data.keys().hasAll([
+          'recipientId', 'senderId', 'senderName', 'senderPhoto',
+          'videoId', 'videoTitle', 'message', 'read', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'recipientId', 'senderId', 'senderName', 'senderPhoto',
+          'videoId', 'videoTitle', 'message', 'read', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.recipientId)
+        && isValidId(data.senderId)
+        && data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 100
+        && data.senderPhoto is string && data.senderPhoto.size() >= 0 && data.senderPhoto.size() <= 500
+        && isValidId(data.videoId)
+        && data.videoTitle is string && data.videoTitle.size() >= 1 && data.videoTitle.size() <= 120
+        && data.message is string && data.message.size() >= 1 && data.message.size() <= 300
+        && data.read is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Collection: /users/{userId} (Public Creator Profile - No PII)
+    match /users/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if false;
+
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserPublicProfile(incoming())
+        && request.auth.uid == userId
+        && incoming().uid == userId
+        && incoming().followerCount == 0
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserPublicProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Owner updates displayName or photoURL
+          (
+            request.auth.uid == userId
+            && incoming().followerCount == existing().followerCount
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt'])
+          )
+          ||
+          // Action 2: Follower atomically increments followerCount while creating follower record
+          (
+            request.auth.uid != userId
+            && incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'updatedAt'])
+            && incoming().followerCount == existing().followerCount + 1
+            && !exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))
+            && existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))
+          )
+          ||
+          // Action 3: Follower atomically decrements followerCount while deleting follower record
+          (
+            request.auth.uid != userId
+            && incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'updatedAt'])
+            && incoming().followerCount == existing().followerCount - 1
+            && exists(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))
+            && !existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid))
+          )
+        );
+
+      allow delete: if false;
+
+      // Subcollection: /users/{userId}/private/{privateId} (Strictly Isolated PII)
+      match /private/{privateId} {
+        allow get: if isSignedIn()
+          && isValidId(userId)
+          && isValidId(privateId)
+          && request.auth.uid == userId
+          && existing().uid == request.auth.uid;
+        allow list: if false;
+
+        allow create: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(privateId)
+          && isValidUserPrivateInfo(incoming())
+          && request.auth.uid == userId
+          && incoming().uid == userId
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && existsAfter(/databases/$(database)/documents/users/$(userId));
+
+        allow update: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(privateId)
+          && isValidUserPrivateInfo(incoming())
+          && request.auth.uid == userId
+          && incoming().uid == existing().uid
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt'])
+          && exists(/databases/$(database)/documents/users/$(userId));
+
+        allow delete: if false;
+      }
+
+      // Subcollection: /users/{userId}/followers/{followerId}
+      match /followers/{followerId} {
+        allow get: if isSignedIn()
+          && isValidId(userId)
+          && isValidId(followerId)
+          && (request.auth.uid == followerId || request.auth.uid == userId);
+
+        // Pillar 8: Query Enforcer (no get() in list, strict check against resource.data)
+        allow list: if isSignedIn()
+          && (existing().creatorId == request.auth.uid || existing().followerId == request.auth.uid);
+
+        allow create: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(followerId)
+          && isValidFollowerRecord(incoming())
+          && request.auth.uid == followerId
+          && incoming().creatorId == userId
+          && incoming().followerId == followerId
+          && incoming().createdAt == request.time
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && exists(/databases/$(database)/documents/users/$(followerId))
+          && getAfter(/databases/$(database)/documents/users/$(userId)).data.followerCount == get(/databases/$(database)/documents/users/$(userId)).data.followerCount + 1;
+
+        allow update: if false;
+
+        allow delete: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(followerId)
+          && request.auth.uid == followerId
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && getAfter(/databases/$(database)/documents/users/$(userId)).data.followerCount == get(/databases/$(database)/documents/users/$(userId)).data.followerCount - 1;
+      }
+
+      // Subcollection: /users/{userId}/notifications/{notificationId}
+      match /notifications/{notificationId} {
+        allow get: if isSignedIn()
+          && isValidId(userId)
+          && isValidId(notificationId)
+          && request.auth.uid == userId
+          && existing().recipientId == request.auth.uid;
+
+        // Pillar 8: Query Enforcer
+        allow list: if isSignedIn()
+          && request.auth.uid == userId
+          && existing().recipientId == request.auth.uid;
+
+        // Creator pushes notification to follower upon video upload
+        allow create: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(notificationId)
+          && isValidUserNotification(incoming())
+          && incoming().recipientId == userId
+          && incoming().senderId == request.auth.uid
+          && incoming().senderId != incoming().recipientId
+          && incoming().read == false
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid)/followers/$(userId))
+          && existsAfter(/databases/$(database)/documents/public_videos/$(incoming().videoId));
+
+        // Recipient marks notification as read (Terminal State Locked once read == true)
+        allow update: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(notificationId)
+          && isValidUserNotification(incoming())
+          && request.auth.uid == userId
+          && existing().read == false
+          && incoming().read == true
+          && incoming().recipientId == existing().recipientId
+          && incoming().senderId == existing().senderId
+          && incoming().senderName == existing().senderName
+          && incoming().senderPhoto == existing().senderPhoto
+          && incoming().videoId == existing().videoId
+          && incoming().videoTitle == existing().videoTitle
+          && incoming().message == existing().message
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt'])
+          && exists(/databases/$(database)/documents/users/$(userId));
+
+        allow delete: if isVerifiedUser()
+          && isValidId(userId)
+          && isValidId(notificationId)
+          && request.auth.uid == userId
+          && exists(/databases/$(database)/documents/users/$(userId));
+      }
+    }
+
+    // Collection: /public_videos/{videoId}
+    match /public_videos/{videoId} {
+      allow get: if isValidId(videoId) && existing().visibility == 'public';
+
+      // Pillar 8: Query Enforcer (evaluates resource.data)
+      allow list: if existing().visibility == 'public';
+
+      allow create: if isVerifiedUser()
+        && isValidId(videoId)
+        && isValidPublicVideo(incoming())
+        && incoming().videoId == videoId
+        && incoming().uploaderId == request.auth.uid
+        && incoming().likeCount == 0
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      allow update: if isVerifiedUser()
+        && isValidId(videoId)
+        && isValidPublicVideo(incoming())
+        && incoming().videoId == existing().videoId
+        && incoming().uploaderId == existing().uploaderId
+        && incoming().driveFileId == existing().driveFileId
+        && incoming().streamUrl == existing().streamUrl
+        && incoming().downloadUrl == existing().downloadUrl
+        && incoming().visibility == existing().visibility
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Owner updates metadata
+          (
+            request.auth.uid == existing().uploaderId
+            && incoming().likeCount == existing().likeCount
+            && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'category', 'uploaderName', 'uploaderPhoto', 'updatedAt'])
+            && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          )
+          ||
+          // Action 2: Authenticated user atomically increments likeCount while creating their like document
+          (
+            incoming().title == existing().title
+            && incoming().description == existing().description
+            && incoming().category == existing().category
+            && incoming().uploaderName == existing().uploaderName
+            && incoming().uploaderPhoto == existing().uploaderPhoto
+            && incoming().diff(existing()).affectedKeys().hasOnly(['likeCount', 'updatedAt'])
+            && incoming().likeCount == existing().likeCount + 1
+            && !exists(/databases/$(database)/documents/public_videos/$(videoId)/likes/$(request.auth.uid))
+            && existsAfter(/databases/$(database)/documents/public_videos/$(videoId)/likes/$(request.auth.uid))
+          )
+          ||
+          // Action 3: Authenticated user atomically decrements likeCount while deleting their like document
+          (
+            incoming().title == existing().title
+            && incoming().description == existing().description
+            && incoming().category == existing().category
+            && incoming().uploaderName == existing().uploaderName
+            && incoming().uploaderPhoto == existing().uploaderPhoto
+            && incoming().diff(existing()).affectedKeys().hasOnly(['likeCount', 'updatedAt'])
+            && incoming().likeCount == existing().likeCount - 1
+            && exists(/databases/$(database)/documents/public_videos/$(videoId)/likes/$(request.auth.uid))
+            && !existsAfter(/databases/$(database)/documents/public_videos/$(videoId)/likes/$(request.auth.uid))
+          )
+        );
+
+      allow delete: if isVerifiedUser()
+        && isValidId(videoId)
+        && request.auth.uid == existing().uploaderId;
+
+      // Subcollection: /public_videos/{videoId}/likes/{userId}
+      match /likes/{userId} {
+        allow get: if isSignedIn()
+          && isValidId(videoId)
+          && isValidId(userId)
+          && request.auth.uid == userId;
+
+        // Pillar 8: Query Enforcer
+        allow list: if isSignedIn()
+          && existing().userId == request.auth.uid;
+
+        allow create: if isVerifiedUser()
+          && isValidId(videoId)
+          && isValidId(userId)
+          && isValidVideoLike(incoming())
+          && request.auth.uid == userId
+          && incoming().videoId == videoId
+          && incoming().userId == userId
+          && incoming().createdAt == request.time
+          && exists(/databases/$(database)/documents/public_videos/$(videoId))
+          && exists(/databases/$(database)/documents/users/$(userId))
+          && getAfter(/databases/$(database)/documents/public_videos/$(videoId)).data.likeCount == get(/databases/$(database)/documents/public_videos/$(videoId)).data.likeCount + 1;
+
+        allow update: if isVerifiedUser()
+          && isValidId(videoId)
+          && isValidId(userId)
+          && isValidVideoLike(incoming())
+          && request.auth.uid == userId
+          && incoming().videoId == existing().videoId
+          && incoming().userId == existing().userId
+          && incoming().createdAt == existing().createdAt
+          && incoming().diff(existing()).affectedKeys().hasOnly(['reactionType'])
+          && exists(/databases/$(database)/documents/public_videos/$(videoId));
+
+        allow delete: if isVerifiedUser()
+          && isValidId(videoId)
+          && isValidId(userId)
+          && request.auth.uid == userId
+          && exists(/databases/$(database)/documents/public_videos/$(videoId))
+          && getAfter(/databases/$(database)/documents/public_videos/$(videoId)).data.likeCount == get(/databases/$(database)/documents/public_videos/$(videoId)).data.likeCount - 1;
+      }
+    }
+  }
+}
