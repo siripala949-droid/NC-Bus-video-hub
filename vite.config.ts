@@ -1,10 +1,13 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
   return {
+    // 👇 මේ පේළිය අනිවාර්යයෙන් ඇතුළත් කරන්න (ඔයාගේ repo නම)
+    base: '/NC-Bus-video-hub/', 
+    
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
